@@ -1,7 +1,11 @@
+import base64
+import io
+import dataiku
 import dash_bootstrap_components as dbc
-from dash import Dash, html, dcc, Input, Output
-from score import build_score_card, build_codebert_card
+from dash import Input, Output, State, html, dcc
+from codebert_analyzer import CodeBERTAnalyzer
 from complexity_calculator import calculate_complexity
+
 
 # Initialize the Dash app
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -42,6 +46,18 @@ app.layout = html.Div([
     ])
 ])
 
+
+# Helper function to parse the uploaded code content
+def parse_code(contents):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    try:
+        # Assuming the uploaded file is a text file containing code
+        return io.StringIO(decoded.decode('utf-8')).read()
+    except Exception as e:
+        return f"Error decoding file: {str(e)}"
+
+
 @app.callback(
     Output('codebert-suggestions', 'children'),
     Output('complexity-metrics', 'children'),
@@ -49,9 +65,13 @@ app.layout = html.Div([
 )
 def analyze_code_and_display_metrics(contents):
     if contents is None:
-        return "No code uploaded", []
+        return "No code uploaded", "No complexity data available"
 
     code_snippet = parse_code(contents)
+    
+    # Handle cases where parsing failed
+    if code_snippet.startswith("Error"):
+        return code_snippet, "No complexity data available"
     
     # CodeBERT suggestions
     codebert_card = build_codebert_card(code_snippet)
@@ -61,6 +81,7 @@ def analyze_code_and_display_metrics(contents):
     complexity_list = [html.Li(f"{m['name']}: Complexity {m['complexity']} (Rank: {m['rank']})") for m in complexity_metrics]
     
     return codebert_card, html.Ul(complexity_list)
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
