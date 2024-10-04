@@ -50,18 +50,6 @@ app.layout = html.Div([
     ])
 ])
 
-
-# Helper function to parse the uploaded code content
-def parse_code(contents):
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-    try:
-        # Assuming the uploaded file is a text file containing code
-        return io.StringIO(decoded.decode('utf-8')).read()
-    except Exception as e:
-        return f"Error decoding file: {str(e)}"
-
-
 @app.callback(
     Output('codebert-suggestions', 'children'),
     Output('complexity-metrics', 'children'),
@@ -70,13 +58,9 @@ def parse_code(contents):
 )
 def analyze_code_and_display_metrics(contents):
     if contents is None:
-        return "No code uploaded", "No complexity data available", "No project score available"
+        return "No code uploaded", [], []
 
     code_snippet = parse_code(contents)
-    
-    # Handle cases where parsing failed
-    if code_snippet.startswith("Error"):
-        return code_snippet, "No complexity data available", "No project score available"
     
     # CodeBERT suggestions
     codebert_card = build_codebert_card(code_snippet)
@@ -85,8 +69,8 @@ def analyze_code_and_display_metrics(contents):
     complexity_metrics = calculate_complexity(code_snippet)
     complexity_list = [html.Li(f"{m['name']}: Complexity {m['complexity']} (Rank: {m['rank']})") for m in complexity_metrics]
     
-    # Project score card
-    score_calculator = CodeBERTAnalyzer()  # Assuming the score uses the CodeBERT analyzer in some way
+    # Score calculation
+    score_calculator = calculate_scores(complexity_metrics)
     score_card = build_score_card(score_calculator)
     
     return codebert_card, html.Ul(complexity_list), score_card

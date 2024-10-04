@@ -4,9 +4,7 @@ from typing import List
 from codebert_analyzer import CodeBERTAnalyzer
 from complexity_calculator import calculate_complexity
 
-# Replace with custom or inline styles
-card_header_class_name = "custom-card-header"
-
+# Styles and configuration
 score_style = {
     'text-align': 'center',
     'color': 'primary',
@@ -33,10 +31,12 @@ h4_style = {
     'text-align': 'center',
 }
 
+
 def get_progress_bar_color(score):
     for low, high, color in progress_color:
         if low <= score < high:
             return color
+
 
 def progress_rows(recipe_scores: dict) -> list:
     rows = []
@@ -70,11 +70,13 @@ def progress_rows(recipe_scores: dict) -> list:
     
     return rows
 
+
+# Score calculation card
 def build_score_card(score_calculator):
     title = "Project Score"
-    total_score = score_calculator.total_score
+    total_score = score_calculator.total_score  # Make sure this object has total_score attribute
     score_card = dbc.Card([
-        dbc.CardHeader(html.B(title), className=card_header_class_name),
+        dbc.CardHeader(html.B(title), class_name="card-header"),
         dbc.CardBody([
             html.Div([
                 html.H4("Project Total Score", style=h4_style),
@@ -92,6 +94,8 @@ def build_score_card(score_calculator):
 
     return score_card
 
+
+# CodeBERT Analysis card
 def build_codebert_card(code_snippet: str):
     analyzer = CodeBERTAnalyzer()
     suggestions = analyzer.get_code_quality_suggestions(code_snippet)
@@ -106,7 +110,7 @@ def build_codebert_card(code_snippet: str):
     ]
 
     codebert_card = dbc.Card([
-        dbc.CardHeader(html.B("CodeBERT Results"), className=card_header_class_name),
+        dbc.CardHeader(html.B("CodeBERT Results"), class_name="card-header"),
         dbc.CardBody(card_content)
     ])
 
