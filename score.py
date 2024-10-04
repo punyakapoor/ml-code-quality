@@ -1,9 +1,11 @@
 import dash_bootstrap_components as dbc
 from dash import html
-from dataiku_dashboard.assets.style import card_header_class_name
 from typing import List
 from codebert_analyzer import CodeBERTAnalyzer
 from complexity_calculator import calculate_complexity
+
+# Replace with custom or inline styles
+card_header_class_name = "custom-card-header"
 
 score_style = {
     'text-align': 'center',
@@ -72,7 +74,7 @@ def build_score_card(score_calculator):
     title = "Project Score"
     total_score = score_calculator.total_score
     score_card = dbc.Card([
-        dbc.CardHeader(html.B(title), class_name=card_header_class_name),
+        dbc.CardHeader(html.B(title), className=card_header_class_name),
         dbc.CardBody([
             html.Div([
                 html.H4("Project Total Score", style=h4_style),
@@ -104,7 +106,7 @@ def build_codebert_card(code_snippet: str):
     ]
 
     codebert_card = dbc.Card([
-        dbc.CardHeader(html.B("CodeBERT Results"), class_name=card_header_class_name),
+        dbc.CardHeader(html.B("CodeBERT Results"), className=card_header_class_name),
         dbc.CardBody(card_content)
     ])
 
