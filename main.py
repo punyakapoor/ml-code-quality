@@ -1,11 +1,14 @@
-import base64
-import io
-import dataiku
+import os
+import subprocess
 import dash_bootstrap_components as dbc
-from dash import Input, Output, State, html, dcc
-from codebert_analyzer import CodeBERTAnalyzer
+from dash import Dash, html, dcc, Input, Output
+from score import build_score_card, build_codebert_card
 from complexity_calculator import calculate_complexity
-from score import build_score_card, build_codebert_card, Score
+
+# SonarQube Configuration
+SONARQUBE_URL = 'http://localhost:9000'
+SONARQUBE_TOKEN = 'sqa_31f4c45b4b8668015cb71376367fd9d54c2c705a'
+PROJECT_KEY = 'test-code-quality1'
 
 # Initialize the Dash app
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -44,28 +47,41 @@ app.layout = html.Div([
             html.Div(id='complexity-metrics')
         ]),
         dbc.Row([
-            dbc.Col(html.H4("Project Score")),
-            html.Div(id='project-score')
+            dbc.Col(html.H4("SonarQube Analysis")),
+            html.Div(id='sonar-output')
         ])
     ])
 ])
 
-# Function to parse uploaded code
-def parse_code(contents):
-    content_type, content_string = contents.split(',')
-    decoded = base64.b64decode(content_string)
-    code_snippet = decoded.decode('utf-8')
-    return code_snippet
+def run_sonar_scanner():
+    """Run SonarScanner and return the output."""
+    try:
+        # Running the SonarScanner using subprocess
+        result = subprocess.run([
+            "pysonar-scanner",
+            f"-Dsonar.projectKey={PROJECT_KEY}",
+            f"-Dsonar.sources=.",
+            f"-Dsonar.host.url={SONARQUBE_URL}",
+            f"-Dsonar.login={SONARQUBE_TOKEN}"
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            return "SonarQube analysis completed successfully!", result.stdout
+        else:
+            return f"Error in SonarQube analysis: {result.stderr}"
+    
+    except Exception as e:
+        return f"Failed to run SonarQube analysis: {str(e)}"
 
 @app.callback(
     Output('codebert-suggestions', 'children'),
     Output('complexity-metrics', 'children'),
-    Output('project-score', 'children'),
+    Output('sonar-output', 'children'),
     Input('upload-code', 'contents')
 )
 def analyze_code_and_display_metrics(contents):
     if contents is None:
-        return "No code uploaded", [], []
+        return "No code uploaded", [], "No SonarQube analysis"
 
     code_snippet = parse_code(contents)
     
@@ -76,15 +92,10 @@ def analyze_code_and_display_metrics(contents):
     complexity_metrics = calculate_complexity(code_snippet)
     complexity_list = [html.Li(f"{m['name']}: Complexity {m['complexity']} (Rank: {m['rank']})") for m in complexity_metrics]
     
-    # Score calculation
-    recipe_slocs = [(m['name'], len(m['name'])) for m in complexity_metrics]  # Dummy example for SLOCs
-    errors = [(m['name'], "error-line", "rule-id", "Error Detail") for m in complexity_metrics]  # Dummy example for errors
-    score_calculator = Score(recipe_slocs, errors)
-    score_calculator.calculate_scores()
+    # SonarQube analysis
+    sonar_message, sonar_output = run_sonar_scanner()
     
-    score_card = build_score_card(score_calculator)
-    
-    return codebert_card, html.Ul(complexity_list), score_card
+    return codebert_card, html.Ul(complexity_list), html.Pre(f"{sonar_message}\n\n{sonar_output}")
 
 if __name__ == '__main__':
     app.run_server(debug=True)
