@@ -1,4 +1,6 @@
 import os
+import logging
+import base64
 import subprocess
 import dash_bootstrap_components as dbc
 from dash import Dash, html, dcc, Input, Output
@@ -53,12 +55,44 @@ app.layout = html.Div([
     ])
 ])
 
+def parse_code(contents):
+    """Parse the uploaded code from the base64 contents."""
+    try:
+        # Log the first 500 characters of the contents to help debug the structure
+        logging.info(f"Contents received (first 500 chars): {contents[:500]}")
+
+        # Split the contents on the first comma
+        parts = contents.split(',', 1)
+        
+        # If the split resulted in more or less than 2 parts, log the error for better clarity
+        if len(parts) != 2:
+            raise ValueError(f"Unexpected content structure, expected 2 parts, found {len(parts)} parts.")
+
+        # Log the structure of the header part for better inspection
+        header = parts[0]
+        logging.info(f"Header information: {header}")
+
+        # Decode the base64 string
+        content_string = parts[1]
+        decoded = base64.b64decode(content_string)
+
+        # Convert the decoded content to a string
+        code = decoded.decode('utf-8')
+
+        return code
+
+    except Exception as e:
+        # Log any exceptions encountered and return an error message
+        logging.error(f"Error decoding file contents: {str(e)}")
+        return f"Error decoding file contents: {str(e)}"
+
+
 def run_sonar_scanner():
     """Run SonarScanner and return the output."""
     try:
         # Running the SonarScanner using subprocess
         result = subprocess.run([
-            "pysonar-scanner",
+            "C:/Users/kapoo507/.sonar/native-sonar-scanner/sonar-scanner-5.0.1.3006-windows/bin/sonar-scanner.bat",
             f"-Dsonar.projectKey={PROJECT_KEY}",
             f"-Dsonar.sources=.",
             f"-Dsonar.host.url={SONARQUBE_URL}",
@@ -84,17 +118,20 @@ def analyze_code_and_display_metrics(contents):
         return "No code uploaded", [], "No SonarQube analysis"
 
     code_snippet = parse_code(contents)
-    
+
+    if "Error" in code_snippet:
+        return code_snippet, [], "No SonarQube analysis"
+
     # CodeBERT suggestions
     codebert_card = build_codebert_card(code_snippet)
-    
+
     # Complexity metrics
     complexity_metrics = calculate_complexity(code_snippet)
     complexity_list = [html.Li(f"{m['name']}: Complexity {m['complexity']} (Rank: {m['rank']})") for m in complexity_metrics]
-    
+
     # SonarQube analysis
     sonar_message, sonar_output = run_sonar_scanner()
-    
+
     return codebert_card, html.Ul(complexity_list), html.Pre(f"{sonar_message}\n\n{sonar_output}")
 
 if __name__ == '__main__':
